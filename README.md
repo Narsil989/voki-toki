@@ -28,3 +28,4 @@ server/   # Node WS relay
 
 - Client connects to `/ws` and Vite proxies to `ws://localhost:8080` in dev.
 - Hold the PTT button (or Space) to transmit audio.
+- Join the same room in two tabs or browsers to talk (2 users max per room).

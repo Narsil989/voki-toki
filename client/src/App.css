@@ -173,6 +173,14 @@ select {
   color: var(--ink);
 }
 
+input[type='text'] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  color: var(--ink);
+}
+
 input[type='range'] {
   accent-color: var(--accent);
 }

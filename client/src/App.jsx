@@ -31,6 +31,10 @@ function App() {
   const [selectedType, setSelectedType] = useState('')
   const [timeslice, setTimeslice] = useState(250)
   const [isRecording, setIsRecording] = useState(false)
+  const [roomInput, setRoomInput] = useState('alpha')
+  const [joinedRoom, setJoinedRoom] = useState('')
+  const [roomCount, setRoomCount] = useState(0)
+  const [roomLimit, setRoomLimit] = useState(2)
   const [logEntries, setLogEntries] = useState([])
   const [lastTx, setLastTx] = useState(null)
   const [lastRx, setLastRx] = useState(null)
@@ -117,6 +121,8 @@ function App() {
 
     socket.onclose = () => {
       setWsStatus('disconnected')
+      setJoinedRoom('')
+      setRoomCount(0)
       appendLog('WebSocket disconnected', 'warn')
     }
 
@@ -129,6 +135,18 @@ function App() {
       if (typeof event.data === 'string') {
         try {
           const payload = JSON.parse(event.data)
+          if (payload.type === 'room-state') {
+            setJoinedRoom(payload.room || '')
+            setRoomCount(payload.count || 0)
+            setRoomLimit(payload.limit || 2)
+            appendLog(`Room ${payload.room} (${payload.count}/${payload.limit})`)
+            return
+          }
+          if (payload.type === 'error') {
+            setError(payload.message || 'Server error')
+            appendLog(payload.message || 'Server error', 'error')
+            return
+          }
           if (payload.type === 'audio-config') {
             setIncomingMeta({
               mimeType: payload.mimeType || '',
@@ -136,6 +154,7 @@ function App() {
               channels: payload.channels || null,
             })
             appendLog(`Incoming format: ${payload.mimeType || 'unknown'}`)
+            return
           }
         } catch (err) {
           appendLog('Received non-JSON message', 'warn')
@@ -206,6 +225,11 @@ function App() {
       return
     }
 
+    if (!joinedRoom) {
+      setError('Join a room before transmitting.')
+      return
+    }
+
     let stream
     try {
       const constraints = {
@@ -262,7 +286,7 @@ function App() {
       setError(err?.message || 'Unable to access microphone.')
       appendLog('Microphone access failed', 'error')
     }
-  }, [appendLog, isRecording, selectedDeviceId, selectedType, timeslice])
+  }, [appendLog, isRecording, joinedRoom, selectedDeviceId, selectedType, timeslice])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -286,7 +310,7 @@ function App() {
     }
   }, [startRecording, stopRecording])
 
-  const canRecord = wsStatus === 'connected' && supportedTypes.length > 0
+  const canRecord = wsStatus === 'connected' && supportedTypes.length > 0 && joinedRoom
 
   return (
     <div className="app">
@@ -312,6 +336,50 @@ function App() {
           <div className="panel__header">
             <h2>Capture</h2>
             <span className="pill">PTT</span>
+          </div>
+
+          <div className="field">
+            <label htmlFor="room">Room</label>
+            <div className="field__row">
+              <input
+                id="room"
+                type="text"
+                value={roomInput}
+                onChange={(event) => setRoomInput(event.target.value)}
+                placeholder="alpha"
+              />
+              {joinedRoom ? (
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => {
+                    stopRecording()
+                    wsRef.current?.send(JSON.stringify({ type: 'leave' }))
+                    setJoinedRoom('')
+                    setRoomCount(0)
+                  }}
+                >
+                  Leave
+                </button>
+              ) : (
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => {
+                    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                      setError('WebSocket is not connected.')
+                      return
+                    }
+                    wsRef.current.send(JSON.stringify({ type: 'join', room: roomInput }))
+                  }}
+                >
+                  Join
+                </button>
+              )}
+            </div>
+            <p className="hint">
+              {joinedRoom ? `In room ${joinedRoom} (${roomCount}/${roomLimit})` : 'Join a room to talk.'}
+            </p>
           </div>
 
           <div className="field">
