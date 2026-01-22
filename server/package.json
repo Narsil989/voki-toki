@@ -1,0 +1,12 @@
+﻿{
+  "name": "voki-toki-server",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
